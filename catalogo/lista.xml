@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<CATALOG>
+    <FILE_ENTRY>
+        <FILE_NAME>arquivo1.txt</FILE_NAME>
+        <DIGEST_ENTRY>
+            <DIGEST_TYPE>SHA256</DIGEST_TYPE>
+            <DIGEST_HEX>5c6f48cdbb6cafc64768bdb64fed96fb000ce5da6f2cc74c6413b6e23e8b0f45</DIGEST_HEX>
+        </DIGEST_ENTRY>
+    </FILE_ENTRY>
+    <FILE_ENTRY>
+        <FILE_NAME>arquivo2.txt</FILE_NAME>
+        <DIGEST_ENTRY>
+            <DIGEST_TYPE>SHA256</DIGEST_TYPE>
+            <DIGEST_HEX>e5df5d5585773df710664954c4a94c5baa55f2b4f7b50846b99dfa3768895a94</DIGEST_HEX>
+        </DIGEST_ENTRY>
+    </FILE_ENTRY>
+</CATALOG>
