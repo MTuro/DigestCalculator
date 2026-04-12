@@ -182,6 +182,7 @@ public class DigestCalculator {
             }
 
             // xml salva alteracoes
+            removerWhitespace(doc);
             salvarXML(doc, arqListaDigest);
         }
     }
@@ -229,6 +230,7 @@ public class DigestCalculator {
 
     // parse: mapear catalogo
     private static Map<String, Map<String, String>> parsearCatalogo(Document doc) {
+        doc.getDocumentElement().normalize();
         Map<String, Map<String, String>> catalogo = new LinkedHashMap<>();
         NodeList fileEntries = doc.getElementsByTagName("FILE_ENTRY");
         for (int i = 0; i < fileEntries.getLength(); i++) {
@@ -254,8 +256,22 @@ public class DigestCalculator {
         return catalogo;
     }
 
+    private static void removerWhitespace(Node node) {
+        NodeList filhos = node.getChildNodes();
+        for (int i = filhos.getLength() - 1; i >= 0; i--) {
+            Node filho = filhos.item(i);
+
+            if (filho.getNodeType() == Node.TEXT_NODE &&
+                filho.getTextContent().trim().isEmpty()) {
+                node.removeChild(filho);
+            } else if (filho.hasChildNodes()) {
+                removerWhitespace(filho);
+            }
+        }
+    }
+
     // persist: salvar catalogo atualizado
-     
+
     private static void salvarXML(Document doc, File arqXML) throws Exception {
         TransformerFactory tf = TransformerFactory.newInstance();
         Transformer transformer = tf.newTransformer();
