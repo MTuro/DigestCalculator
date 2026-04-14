@@ -1,3 +1,6 @@
+// Ana Luiza Pinto Marques - 2211960
+// Marcos Turo Fernandes Junior - 2211712
+
 import java.io.*;
 import java.security.*;
 import java.util.*;
@@ -10,7 +13,7 @@ import org.w3c.dom.*;
 public class DigestCalculator {
 
     public static void main(String[] args) throws Exception {
-        // valida quantidade
+        // Validacao de argumentos
         if (args.length < 3) {
             System.out.println("Uso: DigestCalculator <Tipo_Digest> <Caminho_da_Pasta_dos_Arquivos> <Caminho_ArqListaDigest>");
             System.out.println("Tipos de digest suportados: MD5, SHA1, SHA256, SHA512");
@@ -21,39 +24,41 @@ public class DigestCalculator {
         String caminhoPasta = args[1];
         String caminhoArqListaDigest = args[2];
 
-        // valida tipo
+        // Validacao do tipo de hash suportado
         if (!tipoDigest.equals("MD5") && !tipoDigest.equals("SHA1") &&
             !tipoDigest.equals("SHA256") && !tipoDigest.equals("SHA512")) {
             System.out.println("Tipo de digest invalido. Use: MD5, SHA1, SHA256 ou SHA512");
             return;
         }
 
-        // valida caminho
+        // Validacao do caminho
         File pasta = new File(caminhoPasta);
         if (!pasta.exists() || !pasta.isDirectory()) {
             System.out.println("Erro: Pasta não encontrada: " + caminhoPasta);
             return;
         }
 
+        // Converte o tipo logico para nome valido de JCA
         String algoritmo = getAlgoritmo(tipoDigest);
 
-        // lista arquivos diretos
+        // Lista arquivos
         File[] arquivos = pasta.listFiles(File::isFile);
         if (arquivos == null || arquivos.length == 0) {
             System.out.println("Nenhum arquivo encontrado na pasta: " + caminhoPasta);
             return;
         }
 
+        // Ordena por nome para garantir determinismo na saida
         Arrays.sort(arquivos, Comparator.comparing(File::getName));
 
-        // calcula digest dos arquivos
+        // Calculo dos digests dos arquivos
         Map<String, String> digestsCalculados = new LinkedHashMap<>();
         for (File arq : arquivos) {
             String hexDigest = calcularDigest(arq, algoritmo);
             digestsCalculados.put(arq.getName(), hexDigest);
         }
 
-        // carrega catalogo xml existente ou cria novo
+        // Carregamento ou criacao do catalogo XML
         Map<String, Map<String, String>> catalogoXML = new LinkedHashMap<>();
         File arqListaDigest = new File(caminhoArqListaDigest);
         Document doc = null;
@@ -69,14 +74,14 @@ public class DigestCalculator {
             doc.appendChild(catalog);
         }
 
-        // indexa digests calculados para detectar colisao 
+        // Agrupa arquivos pelo valor de digest (para detectar colisoes locais)
         Map<String, List<String>> digestParaNomes = new HashMap<>();
         for (Map.Entry<String, String> entry : digestsCalculados.entrySet()) {
             String hex = entry.getValue();
             digestParaNomes.computeIfAbsent(hex, k -> new ArrayList<>()).add(entry.getKey());
         }
 
-        // indexa digests do xml
+        // Agrupa digests existentes no XML
         Map<String, List<String>> digestCatalogoParaNomes = new HashMap<>();
         for (Map.Entry<String, Map<String, String>> entry : catalogoXML.entrySet()) {
             String nomeArqCatalogo = entry.getKey();
@@ -87,9 +92,10 @@ public class DigestCalculator {
             }
         }
 
+        // Lista de arquivos que nao existem no XML (serao persistidos)
         List<String> notFoundArqs = new ArrayList<>();
 
-        //  calcula status por arquivo
+        // Classificao por arquivo (status)
         for (Map.Entry<String, String> entry : digestsCalculados.entrySet()) {
             String nomeArq = entry.getKey();
             String digestHex = entry.getValue();
@@ -97,14 +103,14 @@ public class DigestCalculator {
 
             String status;
 
-            // verifica colisao na pasta
+            // Verifica colisao na pasta
             boolean colisaoPasta = false;
             List<String> nomesComMesmoDigest = digestParaNomes.get(digestHex);
             if (nomesComMesmoDigest != null && nomesComMesmoDigest.size() > 1) {
                 colisaoPasta = true;
             }
 
-            //  verifica colisao no xml
+            // Verifica colisao no XML
             boolean colisaoCatalogo = false;
             List<String> nomesCatalogoComMesmoDigest = digestCatalogoParaNomes.get(digestHexLower);
             if (nomesCatalogoComMesmoDigest != null) {
@@ -116,19 +122,24 @@ public class DigestCalculator {
                 }
             }
 
+            // Define status
             if (colisaoPasta || colisaoCatalogo) {
                 status = "COLISION";
             } else {
-                // comparar com xml
                 Map<String, String> digestsNoXML = catalogoXML.get(nomeArq);
+                
+                // Arquivo nao existe no XML
                 if (digestsNoXML == null || !digestsNoXML.containsKey(tipoDigest)) {
                     status = "NOT FOUND";
                     notFoundArqs.add(nomeArq);
                 } else {
                     String digestXML = digestsNoXML.get(tipoDigest).trim().toLowerCase();
+
+                    // Digest igual
                     if (digestXML.equals(digestHexLower)) {
                         status = "OK";
                     } else {
+                        // Digest diferente
                         status = "NOT OK";
                     }
                 }
@@ -137,14 +148,14 @@ public class DigestCalculator {
             System.out.println(nomeArq + " " + tipoDigest + " " + digestHex + " (" + status + ")");
         }
 
-        //persistir not found
+        // Atualizacao do XML
         if (!notFoundArqs.isEmpty()) {
             Element catalogElement = doc.getDocumentElement();
 
             for (String nomeArq : notFoundArqs) {
                 String digestHex = digestsCalculados.get(nomeArq);
 
-                // xml: localizar file_entry existente
+                // Localiza file_entry no XML
                 NodeList fileEntries = catalogElement.getElementsByTagName("FILE_ENTRY");
                 Element fileEntryExistente = null;
                 for (int i = 0; i < fileEntries.getLength(); i++) {
@@ -159,6 +170,7 @@ public class DigestCalculator {
                     }
                 }
 
+                // Cria a estrutura
                 Element digestEntry = doc.createElement("DIGEST_ENTRY");
                 Element digestType = doc.createElement("DIGEST_TYPE");
                 digestType.setTextContent(tipoDigest);
@@ -168,10 +180,10 @@ public class DigestCalculator {
                 digestEntry.appendChild(digestHexElem);
 
                 if (fileEntryExistente != null) {
-                    // xml: anexar digest_entry
+                    // Anexa digest_entry a arquivo existente
                     fileEntryExistente.appendChild(digestEntry);
                 } else {
-                    // xml: criar file_entry
+                    // Criar novo file_entry
                     Element fileEntry = doc.createElement("FILE_ENTRY");
                     Element fileName = doc.createElement("FILE_NAME");
                     fileName.setTextContent(nomeArq);
@@ -181,13 +193,15 @@ public class DigestCalculator {
                 }
             }
 
-            // xml salva alteracoes
+            // Remove espacos em branco irrelevantes
             removerWhitespace(doc);
+
+            // Atualiza XML
             salvarXML(doc, arqListaDigest);
         }
     }
 
-    // jca: resolver algoritmo
+    // Converte o tipo logico para o nome do algoritmo aceito pela JCA
     private static String getAlgoritmo(String tipoDigest) {
         switch (tipoDigest) {
             case "MD5":    return "MD5";
@@ -198,7 +212,7 @@ public class DigestCalculator {
         }
     }
 
-    // digest: calcular por arquivo
+    // Calcula o hash de um arquivo usando buffer
     private static String calcularDigest(File arquivo, String algoritmo) throws Exception {
         MessageDigest md = MessageDigest.getInstance(algoritmo);
         try (FileInputStream fis = new FileInputStream(arquivo)) {
@@ -212,7 +226,7 @@ public class DigestCalculator {
         return bytesToHex(digestBytes);
     }
 
-    // hex: converter bytes para string
+    // Converte array de bytes para string hexadecimal
     private static String bytesToHex(byte[] bytes) {
         StringBuilder sb = new StringBuilder();
         for (byte b : bytes) {
@@ -221,14 +235,14 @@ public class DigestCalculator {
         return sb.toString();
     }
 
-    // xml: carregar documento
+    // Carrega XML
     private static Document carregarXML(File arqXML) throws Exception {
         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
         DocumentBuilder db = dbf.newDocumentBuilder();
         return db.parse(arqXML);
     }
 
-    // parse: mapear catalogo
+    // Mapear catalogo XML
     private static Map<String, Map<String, String>> parsearCatalogo(Document doc) {
         doc.getDocumentElement().normalize();
         Map<String, Map<String, String>> catalogo = new LinkedHashMap<>();
@@ -256,6 +270,7 @@ public class DigestCalculator {
         return catalogo;
     }
 
+    // Remove linhas vazias do XML
     private static void removerWhitespace(Node node) {
         NodeList filhos = node.getChildNodes();
         for (int i = filhos.getLength() - 1; i >= 0; i--) {
@@ -270,8 +285,7 @@ public class DigestCalculator {
         }
     }
 
-    // persist: salvar catalogo atualizado
-
+    // Salva catalogo XML atualizado
     private static void salvarXML(Document doc, File arqXML) throws Exception {
         TransformerFactory tf = TransformerFactory.newInstance();
         Transformer transformer = tf.newTransformer();
